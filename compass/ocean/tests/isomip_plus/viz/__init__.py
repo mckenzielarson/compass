@@ -113,8 +113,9 @@ class Viz(Step):
         time = dsOut.daysSinceStartOfSim.values
         fig = plt.figure()
         plt.plot(time, wct_mean, '.')
-        fig.set_xlabel('Time (days)')
-        fig.set_ylabel('Mean thickness of thin film (m)')
+        ##correct syntax below: replace fig with plt
+        plt.set_xlabel('Time (days)')
+        plt.set_ylabel('Mean thickness of thin film (m)')
         plt.savefig('wct_thin_t.png')
         plt.close()
 
