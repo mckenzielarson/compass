@@ -62,7 +62,11 @@ def init_z_star_vertical_coord(config, ds):
 
     ds['vertCoordMovementWeights'] = xarray.ones_like(ds.refBottomDepth)
 
-    restingSSH = xarray.zeros_like(ds.bottomDepth)
+    calvingDraft = config.getfloat('vertical_grid','calving_draft')
+    if calvingDraft > 0:
+        restingSSH = numpy.maximum(ds.ssh,-calvingDraft)
+    else:
+        restingSSH = xarray.zeros_like(ds.bottomDepth)
     ds['minLevelCell'], ds['maxLevelCell'], ds['cellMask'] = \
         compute_min_max_level_cell(ds.refTopDepth, ds.refBottomDepth,
                                    restingSSH, ds.bottomDepth)
@@ -110,8 +114,16 @@ def _compute_z_star_layer_thickness(restingThickness, ssh, bottomDepth,
 
     nVertLevels = restingThickness.sizes['nVertLevels']
     layerThickness = []
+    totalThickness = []
+    for zIndex in range(nVertLevels):
+        mask = numpy.logical_and(zIndex >= minLevelCell,
+                                 zIndex <= maxLevelCell)
+        thickness = restingThickness.isel(nVertLevels=zIndex)
+        thickness = thickness.where(mask, 0.)
+        totalThickness.append(thickness)
+    restingThicknessTotal = numpy.sum(totalThickness, axis=0)
 
-    layerStretch = (ssh + bottomDepth) / bottomDepth
+    layerStretch = (ssh + bottomDepth) / restingThicknessTotal
     for zIndex in range(nVertLevels):
         mask = numpy.logical_and(zIndex >= minLevelCell,
                                  zIndex <= maxLevelCell)
