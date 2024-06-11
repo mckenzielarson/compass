@@ -334,11 +334,47 @@ class MoviePlotter(object):
             self._plot_vert_field(
                 x, z, osf, title='overturning streamfunction (Sv)',
                 outFileName=outFileName, vmin=vmin, vmax=vmax, cmap='cmo.curl',
-                show_boundaries=False)
+                show_boundaries=False,tIndex=tIndex) ##adding tIndex MLL
             if self.showProgress:
                 bar.update(tIndex + 1)
         if self.showProgress:
             bar.finish()
+
+    def plot_bottomDepth(self, vmin=0., vmax=740., initial_state=True):
+        """
+        Plot a series of image of the ssh
+
+        Parameters
+        ----------
+        vmin, vmax : float, optional
+            The minimum and maximum values for the colorbar
+        """
+
+        if initial_state:
+           da = self.ds.bottomDepth
+
+        self.plot_horiz_series(da, 'bottomDepth', prefix='bottomDepth',
+                               oceanDomain=False, units='m', vmin=vmin,
+                               vmax=vmax, cmap='cmo.curl', time_invariant=True)
+
+    def plot_ssh(self, vmin=-740., vmax=0., initial_state=True):
+        """
+        Plot a series of image of the ssh
+
+        Parameters
+        ----------
+        vmin, vmax : float, optional
+            The minimum and maximum values for the colorbar
+        """
+
+        if initial_state:
+           da = self.ds.ssh
+        else:
+           da = self.ds.timeMonthly_avg_ssh
+
+        self.plot_horiz_series(da, 'ssh', prefix='ssh',
+                               oceanDomain=False, units='m', vmin=vmin,
+                               vmax=vmax, cmap='cmo.curl')
 
     def plot_melt_rates(self, vmin=-100., vmax=100.):
         """
@@ -470,7 +506,7 @@ class MoviePlotter(object):
                           units=None, vmin=None, vmax=None, cmap=None,
                           cmap_set_under=None, cmap_set_over=None,
                           cmap_scale='linear', time_indices=None,
-                          figsize=(9, 3)):
+                          figsize=(9, 3), time_invariant=False):
         """
         Plot a series of image of a given variable
 
@@ -522,7 +558,10 @@ class MoviePlotter(object):
             time_indices = range(nTime)
         for tIndex in time_indices:
             self.update_date(tIndex)
-            field = da.isel(Time=tIndex).values
+            if time_invariant:
+                field = da.values
+            else:
+                field = da.isel(Time=tIndex).values
             outFileName = '{}/{}/{}_{:04d}.png'.format(
                 self.outFolder, prefix, prefix, tIndex + 1)
             if units is None:
@@ -649,11 +688,99 @@ class MoviePlotter(object):
             self._plot_vert_field(self.X, self.Z[tIndex, :, :],
                                   field, title=title,
                                   outFileName=outFileName,
-                                  vmin=vmin, vmax=vmax, cmap=cmap)
+                                  vmin=vmin, vmax=vmax, cmap=cmap,tIndex=tIndex) ##adding tIndex MLL)
             if self.showProgress:
                 bar.update(tIndex + 1)
         if self.showProgress:
             bar.finish()
+
+#     def plot_layer_interfaces(self, figsize=(9, 5)):
+#         """
+#         Plot layer interfaces, the sea surface height and the bottom topography
+#         of the cross section at fixed y.
+
+#         Parameters
+#         ----------
+#         figsize : tuple, optional
+#             The size of the figure
+#         """
+
+#         nTime = self.Z.shape[0]
+
+#         if self.showProgress:
+#             widgets = ['plotting section of layer interfaces: ',
+#                        progressbar.Percentage(), ' ',
+#                        progressbar.Bar(), ' ', progressbar.ETA()]
+#             bar = progressbar.ProgressBar(widgets=widgets,
+#                                           maxval=nTime).start()
+#         else:
+#             bar = None
+
+#         z_mask = numpy.ones(self.X.shape)
+#         z_mask[0:-1, 0:-1] *= numpy.where(self.sectionMask, 1., numpy.nan)
+#         z_mask[1:, 0:-1] *= numpy.where(self.sectionMask, 1., numpy.nan)
+#         z_mask[0:-1, 1:] *= numpy.where(self.sectionMask, 1., numpy.nan)
+#         z_mask[1:, 1:] *= numpy.where(self.sectionMask, 1., numpy.nan)
+
+#         for tIndex in range(nTime):
+#             Z = numpy.array(self.Z[tIndex, :, :])
+#             ylim = [numpy.amin(Z), 20]
+#             Z *= z_mask
+#             X = self.X
+#             zMid = self.ds.zMid.isel(
+#                 nCells=self.sectionCellIndices)
+#             ssh = self.ds.ssh.isel(
+#                 nCells=self.sectionCellIndices)
+#             zMid = zMid[tIndex, :, :]
+#             ssh = ssh[tIndex, :]
+#             self.update_date(tIndex)
+
+#             outFileName = '{}/layers/layers_{:04d}.png'.format(self.outFolder,
+#                                                                tIndex + 1)
+
+#             if os.path.exists(outFileName):
+#                 continue
+
+#             try:
+#                 os.makedirs(os.path.dirname(outFileName))
+#             except OSError:
+#                 pass
+
+#             plt.figure(figsize=figsize)
+#             ax = plt.subplot(111)
+
+#             for z_index in range(1, X.shape[0]):
+#                 plt.plot(1e-3 * X[z_index, :], Z[z_index, :], 'k')
+#             for z_index in range(1, zMid.shape[1]):
+#                 plt.plot(1e-3 * X[z_index, 1:], zMid[:, z_index], 'b')
+#             plt.plot(1e-3 * X[0, 1:], ssh, 'r')
+#             plt.plot(1e-3 * X[0, :], Z[0, :], 'g')
+#             plt.plot(1e-3 * X[0, :], self.zBotSection, 'g')
+
+#             ax.autoscale(tight=True)
+#             x1, x2, y1, y2 = 420, 470, -650, -520
+#             xlim = [min(x1, 1e-3 * numpy.amin(X)), 1e-3 * numpy.amax(X)]
+#             plt.xlim(xlim)
+#             plt.ylim(ylim)
+#             axins = ax.inset_axes([0.01, 0.6, 0.3, 0.39])
+#             for z_index in range(1, X.shape[0]):
+#                 axins.plot(1e-3 * X[z_index, :], Z[z_index, :], 'k')
+#             axins.plot(1e-3 * X[0, :], Z[0, :], 'b')
+#             axins.plot(1e-3 * X[0, :], self.zBotSection, 'g')
+#             axins.set_xlim(x1, x2)
+#             axins.set_ylim(y1, y2)
+#             axins.set_xticklabels([])
+#             axins.set_yticklabels([])
+#             ax.indicate_inset_zoom(axins, edgecolor="black")
+#             plt.title('{} {}'.format('layer interfaces', self.date))
+#             plt.tight_layout(pad=0.5)
+#             plt.savefig(outFileName)
+#             plt.close()
+
+#             if self.showProgress:
+#                 bar.update(tIndex + 1)
+#         if self.showProgress:
+#             bar.finish()
 
     def plot_layer_interfaces(self, figsize=(9, 5)):
         """
@@ -827,9 +954,9 @@ class MoviePlotter(object):
         plt.savefig(outFileName)
         plt.close()
 
-    def _plot_vert_field(self, inX, inZ, field, title, outFileName,
+    def _plot_vert_field(self, inX, inZ, field, title, outFileName,tIndex,
                          vmin=None, vmax=None, figsize=(9, 5), cmap=None,
-                         show_boundaries=True):
+                         show_boundaries=True): ##adding tIndex MLL
         try:
             os.makedirs(os.path.dirname(outFileName))
         except OSError:
@@ -844,7 +971,8 @@ class MoviePlotter(object):
             z_mask = numpy.ones(self.X.shape)
             z_mask[0:-1, 0:-1] *= numpy.where(self.sectionMask, 1., numpy.nan)
 
-            tIndex = 0
+            ## MLL now passing tIndex as an argument to 'plot_vert_field'
+            # tIndex = 0
             Z = numpy.array(self.Z[tIndex, :, :])
             Z *= z_mask
             X = self.X
